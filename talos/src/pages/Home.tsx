@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { core } from "@tauri-apps/api";
 import { Plus } from "lucide-react";
 import BotCard from "../components/BotCard";
@@ -12,9 +13,12 @@ interface Bot {
 }
 
 export default function Home() {
-    const [bots, setBots] = useState<Bot[]>([]);
-
+  const [bots, setBots] = useState<Bot[]>([]);
   const [showPopup, setShowPopup] = useState(false);
+  const navigate = useNavigate();
+  function openBot(bot: Bot) {
+    navigate(`/skill_zone/${bot.name}`, { state: bot });
+  }
 
   // Fetch bots on startup
   useEffect(() => {
@@ -82,6 +86,7 @@ export default function Home() {
                 key={index}
                 name={bot.name}
                 description={bot.description}
+                onClick={() => openBot(bot)}
             />
             ))}
         </div>

@@ -1,13 +1,17 @@
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import Marketplace from "./pages/Marketplace";
+import SkillZone from "./pages/SkillZone";
 
 export default function App() {
   const location = useLocation();
 
+  const inSkillZone = location.pathname.startsWith("/skill_zone");
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-gray-800 flex flex-col">
       {/* Top Toolbar */}
+      {!inSkillZone && (
       <nav className="bg-gray-900/80 backdrop-blur-md flex py-6 items-center border-b border-gray-800 sticky mx-10">
         <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-8  justify-between w-full">
@@ -42,12 +46,17 @@ export default function App() {
             </div>
         </div>
       </nav>
+      )}
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col justify-between p-3">
+       <main
+        className={`flex-1 flex flex-col justify-between ${
+          inSkillZone ? "p-0 m-0" : "p-3"
+        }`}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/skill_zone/:botName" element={<SkillZone />} />
         </Routes>
       </main>
     </div>

@@ -93,11 +93,46 @@ fn get_bots_list() -> Result<Vec<BotEntry>, String> {
     }
 }
 
+#[tauri::command]
+fn load_skill_graph(bot_path: String) -> Result<String, String> {
+    let bot_dir = PathBuf::from(bot_path);
+    let file_path = bot_dir.join("skillgraph.json");
+
+    // Create default if missing
+    if !file_path.exists() {
+        let default_graph = r#"{
+            "nodes": [
+                { "id": "start", "x": 200, "y": 200, "label": "Start", "type": "start" },
+                { "id": "end", "x": 500, "y": 200, "label": "End", "type": "end" }
+            ],
+            "edges": [
+                { "from": "start", "to": "end" }
+            ]
+        }"#;
+
+        fs::write(&file_path, default_graph).map_err(|e| e.to_string())?;
+
+        return Ok(default_graph.to_string());
+    }
+
+    let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+    Ok(content)
+}
+
+#[tauri::command]
+fn save_skill_graph(bot_path: String, graph_json: String) -> Result<(), String> {
+    let base = PathBuf::from(bot_path);
+    let file_path = base.join("skillgraph.json");
+
+    fs::write(&file_path, graph_json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![create_bot, get_bots_list])
+        .invoke_handler(tauri::generate_handler![create_bot, get_bots_list, load_skill_graph, save_skill_graph])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

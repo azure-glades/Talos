@@ -3,11 +3,12 @@ import React from "react";
 interface BotCardProps {
   name: string;
   description: string;
-  image?: string; // optional, in case you want a thumbnail later
+  image?: string;
+  onClick?: () => void;
 }
-export default function BotCard({ name, description, image }: BotCardProps) {
+export default function BotCard({ name, description, image, onClick }: BotCardProps) {
     return (
-        <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10">
+        <div onClick={onClick} className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700 hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10">
         {/* Image or placeholder */}
             <div className="h-32 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
                 {image ? (
