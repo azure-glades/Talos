@@ -11,16 +11,33 @@ struct BotEntry {
     path: String,
 }
 
+fn base_talos_path() -> PathBuf {
+    let username = whoami::username();
+    PathBuf::from(format!("C:/Users/{}/Documents/talos", username))
+}
+
+fn bots_dir() -> PathBuf {
+    base_talos_path().join("bots")
+}
+
+fn bots_list_path() -> PathBuf {
+    bots_dir().join("bots_list.yaml")
+}
+
 #[tauri::command]
 fn create_bot(bot_name: String, bot_description: String, custom_path: Option<String>) -> Result<String, String> {
-    // Base Talos path in Documents
-    let username = whoami::username();
-    let base_path = PathBuf::from(format!("C:/Users/{}/Documents/talos", username));
-    if !base_path.exists() {
-        fs::create_dir_all(&base_path).map_err(|e| e.to_string())?;
+    // Ensure base folders exist
+    let base = base_talos_path();
+    if !base.exists() {
+        fs::create_dir_all(&base).map_err(|e| e.to_string())?;
     }
 
-    // Determine bot folder path
+    let bots_folder = bots_dir();
+    if !bots_folder.exists() {
+        fs::create_dir_all(&bots_folder).map_err(|e| e.to_string())?;
+    }
+
+    // Determine bot folder
     let bot_folder = if let Some(ref path) = custom_path {
         if !path.trim().is_empty() {
             let custom_dir = PathBuf::from(path);
@@ -29,32 +46,33 @@ fn create_bot(bot_name: String, bot_description: String, custom_path: Option<Str
             }
             custom_dir.join(&bot_name)
         } else {
-            base_path.join(&bot_name)
+            bots_folder.join(&bot_name)
         }
     } else {
-        base_path.join(&bot_name)
+        bots_folder.join(&bot_name)
     };
-    
-    // Prevent overwriting existing bot folder
+
     if bot_folder.exists() {
         return Err(format!("Bot '{}' already exists", bot_name));
     }
 
-    // Create bot folder structure
+    // Create folders
     fs::create_dir_all(&bot_folder).map_err(|e| e.to_string())?;
     fs::create_dir_all(bot_folder.join("src")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(bot_folder.join("skills")).map_err(|e| e.to_string())?;
 
-    // Write default files
+    // Default files
     fs::write(
         bot_folder.join("config.yaml"),
         format!("name: {}\ndescription: {}\n", bot_name, bot_description),
     )
     .map_err(|e| e.to_string())?;
-    fs::write(bot_folder.join("main.py"), "# main bot logic goes here\n")
+
+    fs::write(bot_folder.join("src/main.py"), "# main bot logic goes here\n")
         .map_err(|e| e.to_string())?;
 
-    // Update global bots list in Documents/talos/bots_list.yaml
-    let list_path = base_path.join("bots_list.yaml");
+    // Update global bots list
+    let list_path = bots_list_path();
 
     let mut bots: Vec<BotEntry> = if list_path.exists() {
         let content = fs::read_to_string(&list_path).map_err(|e| e.to_string())?;
@@ -81,8 +99,7 @@ fn create_bot(bot_name: String, bot_description: String, custom_path: Option<Str
 
 #[tauri::command]
 fn get_bots_list() -> Result<Vec<BotEntry>, String> {
-    let username = whoami::username();
-    let list_path = PathBuf::from(format!("C:/Users/{}/Documents/talos/bots_list.yaml", username));
+    let list_path = bots_list_path();
 
     if list_path.exists() {
         let content = fs::read_to_string(&list_path).map_err(|e| e.to_string())?;
@@ -95,32 +112,73 @@ fn get_bots_list() -> Result<Vec<BotEntry>, String> {
 
 #[tauri::command]
 fn load_skill_graph(bot_path: String) -> Result<String, String> {
-    let bot_dir = PathBuf::from(bot_path);
+    use std::{fs, path::PathBuf};
+
+    let bot_dir = PathBuf::from(&bot_path);
     let file_path = bot_dir.join("skillgraph.json");
 
-    // Create default if missing
+    // If file doesn't exist, create a default graph
     if !file_path.exists() {
         let default_graph = r#"{
             "nodes": [
-                { "id": "start", "x": 200, "y": 200, "label": "Start", "type": "start" },
-                { "id": "end", "x": 500, "y": 200, "label": "End", "type": "end" }
+                {
+                    "id": "start",
+                    "x": 200,
+                    "y": 300,
+                    "label": "Start",
+                    "skillType": "start",
+                    "inputs": [],
+                    "outputs": [
+                        {
+                            "id": "exec_out",
+                            "label": "Exec",
+                            "type": "EXEC",
+                            "io": "output"
+                        }
+                    ]
+                },
+                {
+                    "id": "end",
+                    "x": 1000,
+                    "y": 300,
+                    "label": "End",
+                    "skillType": "end",
+                    "inputs": [
+                        {
+                            "id": "exec_in",
+                            "label": "Exec",
+                            "type": "EXEC",
+                            "io": "input"
+                        }
+                    ],
+                    "outputs": []
+                }
             ],
             "edges": [
-                { "from": "start", "to": "end" }
+                {
+                    "fromSkillId": "start",
+                    "fromPortId": "exec_out",
+                    "toSkillId": "end",
+                    "toPortId": "exec_in",
+                    "type": "execution"
+                }
             ]
         }"#;
 
         fs::write(&file_path, default_graph).map_err(|e| e.to_string())?;
-
         return Ok(default_graph.to_string());
     }
 
-    let content = fs::read_to_string(file_path).map_err(|e| e.to_string())?;
+    // Otherwise, read and return the existing file
+    let content = fs::read_to_string(&file_path).map_err(|e| e.to_string())?;
     Ok(content)
 }
 
+
+
 #[tauri::command]
 fn save_skill_graph(bot_path: String, graph_json: String) -> Result<(), String> {
+    //TODO: do checks before saving. (loops, improper connections etc)
     let base = PathBuf::from(bot_path);
     let file_path = base.join("skillgraph.json");
 
@@ -132,7 +190,12 @@ fn save_skill_graph(bot_path: String, graph_json: String) -> Result<(), String> 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![create_bot, get_bots_list, load_skill_graph, save_skill_graph])
+        .invoke_handler(tauri::generate_handler![
+            create_bot,
+            get_bots_list,
+            load_skill_graph,
+            save_skill_graph
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

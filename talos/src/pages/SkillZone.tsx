@@ -9,24 +9,24 @@ import {
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { invoke } from "@tauri-apps/api/core";
+import SkillNode, { SkillData } from "../components/SkillNode";
 
-interface Node {
-  id: string;
-  x: number;
-  y: number;
-  label: string;
-  type: string;
+interface Connection {
+  fromSkillId: string;
+  fromPortId: string;
+  toSkillId: string;
+  toPortId: string;
+  type: "execution" | "attribute";
 }
 
 interface Graph {
-  nodes: Node[];
-  edges: { from: string; to: string }[];
+  nodes: SkillData[];
+  edges: Connection[];
 }
 
 export default function SkillZone() {
   const location = useLocation();
   const bot = location.state;
-
   const bot_path = bot.path;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,24 +48,50 @@ export default function SkillZone() {
         const parsed: Graph = JSON.parse(json as string);
         setGraph(parsed);
       } catch {
-        // fallback if graph doesn't exist yet
+        // fallback default graph
         setGraph({
           nodes: [
-            { id: "start", x: 200, y: 300, label: "Start", type: "start" },
-            { id: "end", x: 600, y: 300, label: "End", type: "end" },
+            {
+              id: "start",
+              x: 200,
+              y: 300,
+              label: "Start",
+              skillType: "start",
+              inputs: [],
+               outputs: [
+                { id: "exec_out", label: "Exec", type: "EXEC", io: "output" },
+              ],
+            },
+            {
+              id: "end",
+              x: 1000,
+              y: 300,
+              label: "End",
+              skillType: "end",
+              inputs: [
+                { id: "exec_in", label: "Exec", type: "EXEC", io: "input" },
+              ],
+              outputs: [],
+            },
           ],
-          edges: [{ from: "start", to: "end" }],
+          edges: [
+            {
+              fromSkillId: "start",
+              fromPortId: "exec_out",
+              toSkillId: "end",
+              toPortId: "exec_in",
+              type: "execution",
+            },
+          ],
         });
       }
     }
     load();
   }, []);
 
-  console.log("bot_path =", bot_path);
   // -------- SAVE GRAPH ON CHANGE ----------
   useEffect(() => {
     if (graph.nodes.length === 0) return;
-
     invoke("save_skill_graph", {
       botPath: bot.path,
       graphJson: JSON.stringify(graph, null, 2),
@@ -130,7 +156,6 @@ export default function SkillZone() {
   // ---------------- ZOOM ----------------
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-
     const zoom = 0.001;
     const newScale = Math.min(2, Math.max(0.2, scale - e.deltaY * zoom));
 
@@ -156,80 +181,114 @@ export default function SkillZone() {
     setScale(1);
   };
 
-  const getNodeColor = (type: string) => {
-    switch (type) {
-      case "start":
-        return "bg-green-700 border-green-500";
-      case "end":
-        return "bg-red-700 border-red-500";
-      default:
-        return "bg-gray-700 border-gray-500";
-    }
+  const handlePortOffsetUpdate = (
+    nodeId: string,
+    portId: string,
+    offset: { x: number; y: number }
+  ) => {
+    setGraph((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              inputs: n.inputs.map((p) =>
+                p.id === portId ? { ...p, offset } : p
+              ),
+              outputs: n.outputs.map((p) =>
+                p.id === portId ? { ...p, offset } : p
+              ),
+            }
+          : n
+      ),
+    }));
   };
+
+  // ---------------- PORT POSITION ----------------
+  function getPortWorldPosition(node: SkillData, portId: string) {
+    const port =
+      node.inputs.find((p) => p.id === portId) ||
+      node.outputs.find((p) => p.id === portId);
+
+    if (!port || !port.offset) return { x: node.x, y: node.y };
+
+    return {
+      x: node.x + port.offset.x,
+      y: node.y + port.offset.y,
+    };
+  }
 
   // ---------------- DRAW CONNECTIONS ----------------
   const renderConnections = () =>
     graph.edges.map((edge, i) => {
-      const f = graph.nodes.find((n) => n.id === edge.from);
-      const t = graph.nodes.find((n) => n.id === edge.to);
+      const fromNode = graph.nodes.find((n) => n.id === edge.fromSkillId);
+      const toNode = graph.nodes.find((n) => n.id === edge.toSkillId);
+      if (!fromNode || !toNode) return null;
 
-      if (!f || !t) return null;
+      const from = getPortWorldPosition(fromNode, edge.fromPortId);
+      const to = getPortWorldPosition(toNode, edge.toPortId);
 
-      const path = `M ${f.x} ${f.y} L ${t.x} ${t.y}`;
+      const color = edge.type === "execution" ? "#22c55e" : "#3b82f6";
+
+      // Bézier curve
+      const dx = to.x - from.x;
+      const cx1 = from.x + dx / 2;
+      const cy1 = from.y;
+      const cx2 = to.x - dx / 2;
+      const cy2 = to.y;
 
       return (
         <g key={i}>
           <path
-            d={path}
+            d={`M ${from.x} ${from.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${to.x} ${to.y}`}
             fill="none"
-            stroke="#3b82f6"
+            stroke={color}
             strokeWidth="3"
-            strokeDasharray="5,5"
-          >
-            <animate
-              attributeName="stroke-dashoffset"
-              from="0"
-              to="10"
-              dur="0.5s"
-              repeatCount="indefinite"
-            />
-          </path>
-          <circle cx={t.x} cy={t.y} r="4" fill="#3b82f6" />
+          />
         </g>
       );
     });
 
+  // ---------------- RENDER ----------------
   if (!graph) return <div className="text-white p-10">Loading…</div>;
 
   return (
-    <div className="w-full h-screen bg-[#1a1a1a] text-white relative overflow-hidden select-none flex">
+    <div className="w-full h-screen bg-[#1a1a1a] text-white relative overflow-hidden select-none flex ">
       {/* Sidebar */}
       <div
-        className={`absolute left-0 top-0 h-full bg-gray-900 border-r border-gray-700 z-30 transition-transform ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-        style={{ width: "250px" }}
+        className={`absolute left-0 top-1/2 -translate-y-1/2 bg-gray-900 border-r border-gray-700 z-30 transition-all duration-300`}
+        style={{
+          width: sidebarOpen ? "250px" : "60px",
+          height: "97vh",
+          borderTopRightRadius: "20px",
+          borderBottomRightRadius: "20px",
+        }}
       >
-        <div className="p-6 space-y-4">
-          <h2 className="text-xl font-bold">Navigation</h2>
-
+        <div className="p-4 space-y-4 flex flex-col">
           <button
-            onClick={() => window.history.back()}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 bg-gray-800 rounded-lg border border-gray-600 flex items-center justify-center"
+            style={{
+              width: sidebarOpen ? "40px" : "30px",
+              height: sidebarOpen ? "40px" : "30px",
+            }}
           >
-            <Home className="w-5 h-5" />
-            <span>Back to Home</span>
+            {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
           </button>
+
+          <div className="mt-6 space-y-3 flex-1 flex flex-col">
+            <button
+              onClick={() => window.history.back()}
+              className="w-full flex items-center gap-3 px-2 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg justify-start"
+            >
+              <Home className="w-6 h-6" />
+              {sidebarOpen && (
+                <span className="text-sm whitespace-nowrap">Home</span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Sidebar toggle */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="absolute left-2 top-2 z-40 p-2 bg-gray-800 rounded-lg border border-gray-600"
-      >
-        {sidebarOpen ? <ChevronLeft /> : <ChevronRight />}
-      </button>
 
       {/* Zoom controls */}
       <div className="absolute top-2 right-2 z-20 flex items-center gap-2 bg-gray-800 rounded-lg p-1 border border-gray-600">
@@ -240,9 +299,7 @@ export default function SkillZone() {
           <ZoomOut />
         </button>
 
-        <span className="text-sm font-mono px-2">
-          {Math.round(scale * 100)}%
-        </span>
+        <span className="text-sm font-mono px-2">{Math.round(scale * 100)}%</span>
 
         <button
           onClick={() => setScale((s) => Math.min(2, s + 0.1))}
@@ -251,10 +308,7 @@ export default function SkillZone() {
           <ZoomIn />
         </button>
 
-        <button
-          onClick={handleResetView}
-          className="p-2 hover:bg-gray-700 rounded"
-        >
+        <button onClick={handleResetView} className="p-2 hover:bg-gray-700 rounded">
           <Maximize2 />
         </button>
       </div>
@@ -297,21 +351,13 @@ export default function SkillZone() {
 
           {/* NODES */}
           {graph.nodes.map((node) => (
-            <div
+            <SkillNode
               key={node.id}
-              className={`node-item absolute px-6 py-4 rounded-xl border-2 cursor-move shadow-xl ${getNodeColor(
-                node.type
-              )}`}
-              style={{
-                left: `${node.x}px`,
-                top: `${node.y}px`,
-                transform: "translate(-50%, -50%)",
-              }}
+              data={node}
+              selected={false}
               onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
-            >
-              <h3 className="font-bold text-sm uppercase">{node.label}</h3>
-              <p className="text-xs opacity-80">{node.type}</p>
-            </div>
+              onPortOffsetUpdate={handlePortOffsetUpdate}
+            />
           ))}
         </div>
       </div>

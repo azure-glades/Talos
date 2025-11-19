@@ -1,5 +1,3 @@
-import React from "react";
-
 interface BotCardProps {
   name: string;
   description: string;
