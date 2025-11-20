@@ -1,8 +1,9 @@
 // src-tauri/src/lib.rs
+mod skills;
+
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-use whoami;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct BotEntry {
@@ -11,13 +12,12 @@ struct BotEntry {
     path: String,
 }
 
-fn base_talos_path() -> PathBuf {
-    let username = whoami::username();
-    PathBuf::from(format!("C:/Users/{}/Documents/talos", username))
+fn base_projects_path() -> PathBuf {
+    PathBuf::from(format!("./projects"))
 }
 
 fn bots_dir() -> PathBuf {
-    base_talos_path().join("bots")
+    base_projects_path().join("bots")
 }
 
 fn bots_list_path() -> PathBuf {
@@ -27,7 +27,7 @@ fn bots_list_path() -> PathBuf {
 #[tauri::command]
 fn create_bot(bot_name: String, bot_description: String, custom_path: Option<String>) -> Result<String, String> {
     // Ensure base folders exist
-    let base = base_talos_path();
+    let base = base_projects_path();
     if !base.exists() {
         fs::create_dir_all(&base).map_err(|e| e.to_string())?;
     }
@@ -175,7 +175,6 @@ fn load_skill_graph(bot_path: String) -> Result<String, String> {
 }
 
 
-
 #[tauri::command]
 fn save_skill_graph(bot_path: String, graph_json: String) -> Result<(), String> {
     //TODO: do checks before saving. (loops, improper connections etc)
@@ -194,7 +193,8 @@ pub fn run() {
             create_bot,
             get_bots_list,
             load_skill_graph,
-            save_skill_graph
+            save_skill_graph,
+            skills::get_skills_list
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

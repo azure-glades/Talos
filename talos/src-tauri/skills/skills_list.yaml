@@ -1,0 +1,2 @@
+- name: keyboard_input
+  path: ./skills/keyboard_input.rs
