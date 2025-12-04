@@ -194,7 +194,8 @@ pub fn run() {
             get_bots_list,
             load_skill_graph,
             save_skill_graph,
-            skills::get_skills_list
+            skills::load_skills,
+            skills::launch_bot
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

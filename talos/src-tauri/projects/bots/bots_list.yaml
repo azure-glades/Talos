@@ -1,3 +1,6 @@
 - name: bbgirl
   description: ''
   path: ./projects/bots/bbgirl
+- name: Prar
+  description: ''
+  path: ./projects/bots/Prar

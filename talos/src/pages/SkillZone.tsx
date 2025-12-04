@@ -16,7 +16,7 @@ interface Connection {
   fromPortId: string;
   toSkillId: string;
   toPortId: string;
-  type: "execution" | "attribute";
+  edgeType: "execution" | "attribute";
 }
 
 interface Graph {
@@ -80,7 +80,7 @@ export default function SkillZone() {
               fromPortId: "exec_out",
               toSkillId: "end",
               toPortId: "exec_in",
-              type: "execution",
+              edgeType: "execution",
             },
           ],
         });
@@ -204,6 +204,21 @@ export default function SkillZone() {
     }));
   };
 
+  // ----------  LAUNCH  ----------
+  const [launching, setLaunching] = useState(false);
+
+  const handleLaunch = async () => {
+    setLaunching(true);
+    try {
+      await invoke("launch_bot");
+      alert("Bot finished successfully");
+    } catch (e) {
+      alert("Launch failed: " + e);
+    } finally {
+      setLaunching(false);
+    }
+  };
+
   // ---------------- PORT POSITION ----------------
   function getPortWorldPosition(node: SkillData, portId: string) {
     const port =
@@ -228,7 +243,7 @@ export default function SkillZone() {
       const from = getPortWorldPosition(fromNode, edge.fromPortId);
       const to = getPortWorldPosition(toNode, edge.toPortId);
 
-      const color = edge.type === "execution" ? "#22c55e" : "#3b82f6";
+      const color = edge.edgeType === "execution" ? "#22c55e" : "#3b82f6";
 
       // Bézier curve
       const dx = to.x - from.x;
@@ -310,6 +325,17 @@ export default function SkillZone() {
 
         <button onClick={handleResetView} className="p-2 hover:bg-gray-700 rounded">
           <Maximize2 />
+        </button>
+        <button
+          onClick={handleLaunch}
+          disabled={launching}
+          className={`px-3 py-2 rounded border transition ${
+            launching
+              ? "bg-gray-600 text-gray-400 border-gray-600"
+              : "bg-green-700 hover:bg-green-600 text-white border-green-600"
+          }`}
+        >
+          {launching ? "Running…" : "Launch Bot"}
         </button>
       </div>
 

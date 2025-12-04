@@ -1,0 +1,138 @@
+{
+  "nodes": [
+    {
+      "id": "start",
+      "x": 220,
+      "y": 277,
+      "label": "Start",
+      "skillType": "start",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "exec_out",
+          "label": "Exec",
+          "type": "EXEC",
+          "io": "output",
+          "offset": {
+            "x": 108.984375,
+            "y": -8
+          }
+        }
+      ]
+    },
+    {
+      "id": "keyboard_input",
+      "x": 648,
+      "y": 266,
+      "label": "Keyboard Input",
+      "skillType": "basic",
+      "inputs": [
+        {
+          "id": "exec_in",
+          "label": "Exec",
+          "type": "EXEC",
+          "io": "input",
+          "offset": {
+            "x": -109,
+            "y": -16
+          }
+        },
+        {
+          "id": "keys",
+          "label": "Keys",
+          "type": "string[]",
+          "io": "input",
+          "offset": {
+            "x": -111,
+            "y": 14
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "id": "exec_out",
+          "label": "Exec",
+          "type": "EXEC",
+          "io": "output",
+          "offset": {
+            "x": 108.984375,
+            "y": -16
+          }
+        },
+        {
+          "id": "pressed",
+          "label": "Key Pressed",
+          "type": "bool[]",
+          "io": "output",
+          "offset": {
+            "x": 111,
+            "y": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "end",
+      "x": 1084,
+      "y": 284,
+      "label": "End",
+      "skillType": "end",
+      "inputs": [
+        {
+          "id": "exec_in",
+          "label": "Exec",
+          "type": "EXEC",
+          "io": "input",
+          "offset": {
+            "x": -109,
+            "y": -8
+          }
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "id": "keys",
+      "x": 205,
+      "y": 402,
+      "label": "Keys To Check",
+      "skillType": "static_attribute",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "v_out",
+          "label": "keys",
+          "type": "string[]",
+          "io": "output",
+          "offset": {
+            "x": 111,
+            "y": 14
+          }
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "fromSkillId": "start",
+      "fromPortId": "exec_out",
+      "toSkillId": "keyboard_input",
+      "toPortId": "exec_in",
+      "edgeType": "execution"
+    },
+    {
+      "fromSkillId": "keys",
+      "fromPortId": "v_out",
+      "toSkillId": "keyboard_input",
+      "toPortId": "keys",
+      "edgeType": "attribute"
+    },
+    {
+      "fromSkillId": "keyboard_input",
+      "fromPortId": "exec_out",
+      "toSkillId": "end",
+      "toPortId": "exec_in",
+      "edgeType": "execution"
+    }
+  ]
+}

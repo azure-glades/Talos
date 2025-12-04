@@ -2,8 +2,8 @@
   "nodes": [
     {
       "id": "start",
-      "x": 200,
-      "y": 300,
+      "x": 393,
+      "y": 545,
       "label": "Start",
       "skillType": "start",
       "inputs": [],
@@ -22,8 +22,8 @@
     },
     {
       "id": "end",
-      "x": 1148,
-      "y": 419,
+      "x": 1191,
+      "y": 325,
       "label": "End",
       "skillType": "end",
       "inputs": [
