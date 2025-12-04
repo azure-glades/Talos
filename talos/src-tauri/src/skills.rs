@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use crate::{bots_dir};
 use std::fs;
 use std::process::Command;
@@ -124,7 +126,7 @@ pub fn launch_bot() -> Result<String, String> {
 
     // assuming skills to be plain old binary executables
     for skill_id in skills {
-        let mut bin_path = skills_dir().join("target").join(&skill_id);
+        let bin_path = skills_dir().join("target").join(&skill_id);
         debug_log(&format!("Path: {}", bin_path.display()));
 
         let status = Command::new("x-terminal-emulator")
